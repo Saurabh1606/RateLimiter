@@ -1,0 +1,44 @@
+
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: redis-server
+    ports:
+      - "6379:6379"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  rate_limit:
+    build: .
+    container_name: rate-limit-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_TIMEOUT=2000
+      - SPRING_REDIS_DATABASE=0
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis_data:
